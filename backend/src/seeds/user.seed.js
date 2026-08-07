@@ -1,11 +1,7 @@
-import { config } from "dotenv";
-import { connectDB } from "../lib/db.js";
+import bcrypt from "bcryptjs";
 import User from "../models/user.model.js";
 
-config();
-
 const seedUsers = [
-  // Female Users
   {
     email: "emma.thompson@example.com",
     fullName: "Emma Thompson",
@@ -36,17 +32,12 @@ const seedUsers = [
     password: "123456",
     profilePic: "https://randomuser.me/api/portraits/women/5.jpg",
   },
-  
   {
     email: "charlotte.williams@example.com",
     fullName: "Charlotte Williams",
     password: "123456",
     profilePic: "https://randomuser.me/api/portraits/women/7.jpg",
   },
- 
-
-  // Male Users
-  
   {
     email: "william.clark@example.com",
     fullName: "William Clark",
@@ -79,15 +70,29 @@ const seedUsers = [
   },
 ];
 
-const seedDatabase = async () => {
+export const seedUsersIfNeeded = async () => {
   try {
-    await connectDB();
+    const existingUserCount = await User.countDocuments();
 
-    await User.insertMany(seedUsers);
-    console.log("Database seeded successfully");
+    if (existingUserCount > 0) {
+      console.log("Seed users already exist, skipping seeding.");
+      return;
+    }
+
+    const usersWithHashedPasswords = await Promise.all(
+      seedUsers.map(async (user) => ({
+        ...user,
+        password: await bcrypt.hash(user.password, 10),
+      }))
+    );
+
+    await User.insertMany(usersWithHashedPasswords);
+    console.log("Seed users inserted successfully.");
   } catch (error) {
     console.error("Error seeding database:", error);
   }
 };
 
-seedDatabase();
+if (process.argv[1].endsWith("user.seed.js")) {
+  seedUsersIfNeeded();
+}
